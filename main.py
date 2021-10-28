@@ -3,7 +3,6 @@ __human_name__ = "Betsy Webshop"
 
 
 from models import Tag, Transaction, db, Product, TagPerProduct
-from peewee import JOIN
 from datetime import date
 
 

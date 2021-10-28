@@ -1,5 +1,4 @@
 from models import db, User, Product, Tag, TagPerProduct, Transaction
-from datetime import date
 
 def create_test_data():
 
