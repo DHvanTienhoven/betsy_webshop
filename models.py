@@ -31,7 +31,7 @@ class TagPerProduct(BaseModel):
 class Transaction(BaseModel):
     transaction_id = AutoField()
     transaction_date = DateField()
-    product = ForeignKeyField(Product, backref="sales")
+    product_id = ForeignKeyField(Product, backref="sales")
     quantity = IntegerField()
     sub_total = DecimalField()
-    customer = ForeignKeyField(User, backref="purchases")
+    customer_id = ForeignKeyField(User, backref="purchases")

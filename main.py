@@ -1,7 +1,7 @@
 __winc_id__ = "d7b474e9b3a54d23bca54879a4f1855b"
 __human_name__ = "Betsy Webshop"
 
-from models import Tag, Transaction, User, db, Product, TagPerProduct
+from models import Tag, Transaction, User, Product, TagPerProduct
 from datetime import date
 
 
@@ -19,15 +19,19 @@ def search(term: str):
 
 def list_user_products(user_name: str):
     '''
-    Description: This function will search for products based on a specific user
+    Description: This function will search for made and bought products based on a specific user
 
     Keyword arguments: user_name (string, case sensitive)
 
     Returns: List of Dictionairies of products made by the user
     '''
     user_id = User.get(User.user_name == user_name).user_id
-    products = Product.select().where(Product.product_creator == user_id).dicts()
-    return list(products)
+    made_products = list(Product.select().where(Product.product_creator == user_id).dicts())
+    made_products = [d['product_name'] for d in made_products]
+    bought_products = list(Transaction.select(Product).join(Product).where(Transaction.customer_id == user_id and Transaction.quantity > 0).dicts())
+    bought_products = [d['product_name'] for d in bought_products]
+    user_products = {'own products': made_products, 'bought products': bought_products}
+    return user_products
 
 
 def list_products_per_tag(tag_id: str):
@@ -50,7 +54,6 @@ def add_product_to_catalog(user_id: int, prod_name: str, prod_description: str, 
 
     Updates database to add new product
     '''
-    db.connect()
     Product.create(product_name=prod_name, description=prod_description, price_per_unit=price, quantity=prod_quantity, product_creator=user_id)
     get_existing_tags = Tag.select()
     existing_tags = []
@@ -62,7 +65,6 @@ def add_product_to_catalog(user_id: int, prod_name: str, prod_description: str, 
     product_id = len(Product.select()) + 1
     for tag in tags:
         TagPerProduct.create(tag=tag, product=product_id)
-    db.close()
 
 
 def update_stock(product_name: str, new_quantity: int):
@@ -89,27 +91,28 @@ def purchase_product(product_name: str, buyer_name: str, quantity: int):
     '''
     product_id = Product.get(Product.product_name == product_name).product_id
     buyer_id = User.get(User.user_name == buyer_name).user_id
-    db.connect()
     price = Product.get(Product.product_id==product_id).price_per_unit
     subtotal = round(price * quantity, 2)
-    Transaction.create(transaction_date=date.today(), product=product_id, quantity=quantity, customer=buyer_id, sub_total=subtotal)
+    Transaction.create(transaction_date=date.today(), product_id=product_id, quantity=quantity, customer_id=buyer_id, sub_total=subtotal)
     current_quantity = Product.get(Product.product_id==product_id).quantity
     new_quantity = current_quantity - quantity
     update_stock(product_name, new_quantity)
-    db.close()
 
 
-def remove_product_from_user(product_name: str):
+def remove_bought_product_from_user(product_name: str, user_name: str):
     '''
-    Description: this function will remove a product from the database
+    Description: this function will reverse a purchase based on the input. It will change the quantity in the Transaction table
+    for the given user and product to 0, and restore the quantity in the product database
 
-    Keyword arguments: product_name (string, case sensitive)
+    Keyword arguments: product_name (string, case sensitive), user_name (string, case sensitive)
 
-    Updates database: removes product from database 
+    Updates database: changes quantity in transaction table to 0. Will restore the quantity in the products table
     '''
-    product_to_remove = Product.get(Product.product_name == product_name)
-    product_id = product_to_remove.product_id
-    print(product_id)
-    product_to_remove.delete_instance()
-    TagPerProduct.delete().where(TagPerProduct.product==product_id)
-
+    user_id = User.get(User.user_name == user_name).user_id
+    product_id = Product.get(Product.product_name == product_name).product_id
+    transaction_record = Transaction.select().where(Transaction.customer_id == user_id and Transaction.product_id == product_id).get()
+    quantity = transaction_record.quantity
+    current_quantity = Product.get(Product.product_id==product_id).quantity
+    update_stock(product_name, quantity + current_quantity)
+    transaction_record.quantity = 0
+    transaction_record.save()
