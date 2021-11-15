@@ -102,7 +102,7 @@ def purchase_product(product_name: str, buyer_name: str, quantity: int):
 def remove_bought_product_from_user(product_name: str, user_name: str):
     '''
     Description: this function will reverse a purchase based on the input. It will change the quantity in the Transaction table
-    for the given user and product to 0, and restore the quantity in the product database
+    for the given user and product to 0
 
     Keyword arguments: product_name (string, case sensitive), user_name (string, case sensitive)
 
@@ -110,9 +110,7 @@ def remove_bought_product_from_user(product_name: str, user_name: str):
     '''
     user_id = User.get(User.user_name == user_name).user_id
     product_id = Product.get(Product.product_name == product_name).product_id
-    transaction_record = Transaction.select().where(Transaction.customer_id == user_id and Transaction.product_id == product_id).get()
-    quantity = transaction_record.quantity
-    current_quantity = Product.get(Product.product_id==product_id).quantity
-    update_stock(product_name, quantity + current_quantity)
-    transaction_record.quantity = 0
-    transaction_record.save()
+    transaction_record = Transaction.select().where(Transaction.customer_id == user_id and Transaction.product_id == product_id)
+    for record in transaction_record:
+        record.quantity = 0
+        record.save()
